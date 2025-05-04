@@ -2,76 +2,88 @@
 
 namespace App\Http\Controllers;
 
-
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use App\Models\User;
 
 class AuthController extends Controller
 {
-    // 🟢 Registrasi user baru
-    public function register(Request $request)
+    // 🔐 Login User
+    public function login(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name'     => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
+        // Validasi input
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validasi gagal',
-                'errors'  => $validator->errors(),
-            ], 422);
+        // Cari user berdasarkan email
+        $user = User::where('email', $request->email)->first();
+
+        // Jika user tidak ditemukan atau password tidak cocok
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Email atau password salah'], 401);
         }
 
-        $user = User::create([
-            'name'     => $request->name,
-            'username' => $request->username,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
+        // Buat token API untuk user yang berhasil login
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        // Kembalikan response dengan token dan data user
+        return response()->json([
+            'message' => 'Login berhasil',
+            'token' => $token,
+            'user' => $user,
+        ]);
+    }
+
+    // 📝 Register User Baru
+    public function register(Request $request)
+    {
+        // Validasi input
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6|confirmed',
+            'role' => 'in:user,admin' // Validasi role
         ]);
 
+        // Buat user baru
+        $user = User::create([
+            'name' => $request->name,
+            'username' => $request->username,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'role' => $request->role ?? 'user', // Default ke 'user' jika role tidak diberikan
+        ]);
+
+        // Buat token API untuk user yang baru saja terdaftar
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        // Kembalikan response dengan token dan data user
         return response()->json([
             'message' => 'Registrasi berhasil',
-            'user'    => $user,
+            'token' => $token,
+            'user' => $user
         ], 201);
     }
 
-    // 🟡 Login (menggunakan sesi, cocok untuk Sanctum + Next.js)
-    public function login(Request $request)
+    // 👤 Ambil Data User (dengan token)
+    public function user(Request $request)
     {
-        $credentials = $request->only('email', 'password');
-
-        // Verifikasi kredensial
-        if (!Auth::attempt($credentials)) {
-            return response()->json([
-                'message' => 'Email atau password salah.',
-            ], 401);
-        }
-
-        // Regenerasi sesi untuk autentikasi
-        $request->session()->regenerate();
-
-        return response()->json([
-            'message' => 'Login berhasil',
-            'user' => Auth::user(),
-        ]);
+        // Mengembalikan data user berdasarkan token yang dikirimkan
+        return response()->json($request->user());
     }
 
-    // 🔴 Logout
+    // 🔓 Logout (hapus semua token)
     public function logout(Request $request)
     {
-        // Logout dan hapus sesi
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        // Hapus semua token yang dimiliki oleh user yang sedang login
+        $request->user()->tokens->each(function ($token) {
+            $token->delete();
+        });
 
-        return response()->json([
-            'message' => 'Logout berhasil',
-        ]);
+        // Kembalikan response logout berhasil
+        return response()->json(['message' => 'Logout berhasil']);
     }
 }

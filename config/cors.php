@@ -19,20 +19,8 @@ return [
         'sanctum/csrf-cookie',
     ],
 
+    'allowed_origins' => ['http://localhost:3000'],  // Ganti dengan alamat frontend kamu
+    'allowed_headers' => ['Content-Type', 'X-Requested-With', 'X-CSRF-TOKEN'],
     'allowed_methods' => ['*'],
-
-    'allowed_origins' => [
-        'http://localhost:3000',
-    ],
-
-    'allowed_origins_patterns' => [],
-
-    'allowed_headers' => ['*'],
-
-    'exposed_headers' => [],
-
-    'max_age' => 0,
-
-    'supports_credentials' => true,
-
+    'supports_credentials' => true,  // Agar cookies dikirimkan dengan permintaan
 ];
