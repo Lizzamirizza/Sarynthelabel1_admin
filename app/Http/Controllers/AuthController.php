@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers;
 
-
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -41,34 +39,37 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // 🟡 Login (menggunakan sesi, cocok untuk Sanctum + Next.js)
+    // 🟡 Login (token-based API login)
     public function login(Request $request)
     {
-        $credentials = $request->only('email', 'password');
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
-        // Verifikasi kredensial
-        if (!Auth::attempt($credentials)) {
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json([
                 'message' => 'Email atau password salah.',
             ], 401);
         }
 
-        // Regenerasi sesi untuk autentikasi
-        $request->session()->regenerate();
+        // Buat token baru
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Login berhasil',
-            'user' => Auth::user(),
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user,
         ]);
     }
 
-    // 🔴 Logout
+    // 🔴 Logout (hapus token)
     public function logout(Request $request)
     {
-        // Logout dan hapus sesi
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $request->user()->currentAccessToken()->delete();
 
         return response()->json([
             'message' => 'Logout berhasil',

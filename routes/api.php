@@ -28,3 +28,5 @@ Route::get('/products', [ProductController::class, 'index']);
 // Route kategori yang dilindungi autentikasi (hanya bisa diakses oleh pengguna yang sudah login)
 Route::middleware('auth:sanctum')->get('/protected-categories', [CategoryController::class, 'index']);
 
+// routes/api.php
+Route::get('/products/category/{categoryId}', [ProductController::class, 'getRelatedProducts']);

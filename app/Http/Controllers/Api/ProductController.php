@@ -33,4 +33,4 @@ class ProductController extends Controller
         // Return products with pagination metadata
         return response()->json($products);
     }
-}
+} 
