@@ -66,12 +66,15 @@ class ShipmentResource extends Resource
                 TextColumn::make('order.id')->label('Order #'),
                 TextColumn::make('courier'),
                 TextColumn::make('tracking_number')->label('Tracking No.')->wrap(),
-                BadgeColumn::make('status')->colors([
+                TextColumn::make('status')
+                    -> badge()
+                    ->color(fn (string $state): string => match ($state) {
                     'gray' => 'pending',
                     'warning' => 'shipped',
                     'success' => 'delivered',
                     'danger' => 'cancelled',
-                ]),
+
+    }),
                 TextColumn::make('estimated_delivery')->label('ETA')->dateTime(),
                 TextColumn::make('shipped_at')->label('Shipped')->dateTime(),
                 TextColumn::make('delivered_at')->label('Delivered')->dateTime(),

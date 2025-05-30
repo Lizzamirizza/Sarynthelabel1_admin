@@ -16,6 +16,7 @@ use Filament\Forms\Components\TextArea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ImageColumn;
 
+
 class RelatedProductResource extends Resource
 {
     protected static ?string $model = RelatedProduct::class;

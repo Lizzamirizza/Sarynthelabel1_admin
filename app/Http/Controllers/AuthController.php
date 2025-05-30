@@ -2,77 +2,72 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use App\Models\User;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // 🟢 Registrasi user baru
     public function register(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name'     => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username',
-            'email'    => 'required|email|unique:users,email',
+        $request->validate([
+            'name' => 'required|string|unique:users',
+            'username' => 'required|string|unique:users',
+            'email' => 'required|email|unique:users',
             'password' => 'required|string|min:6',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validasi gagal',
-                'errors'  => $validator->errors(),
-            ], 422);
-        }
-
         $user = User::create([
-            'name'     => $request->name,
+            'name' => $request->name,
             'username' => $request->username,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
         ]);
 
+        // Generate token langsung setelah registrasi
+        $token = $user->createToken('user-token')->plainTextToken;
+
         return response()->json([
-            'message' => 'Registrasi berhasil',
-            'user'    => $user,
+            'message' => 'Registered successfully',
+            'token' => $token,
         ], 201);
     }
 
-    // 🟡 Login (token-based API login)
     public function login(Request $request)
     {
         $request->validate([
             'email' => 'required|email',
-            'password' => 'required',
+            'password' => 'required|string',
         ]);
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'message' => 'Email atau password salah.',
-            ], 401);
+        if (! $user || ! Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
         }
 
-        // Buat token baru
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Generate personal access token
+        $token = $user->createToken('user-token')->plainTextToken;
 
         return response()->json([
-            'message' => 'Login berhasil',
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user,
+            'message' => 'Logged in successfully',
+            'token' => $token,
         ]);
     }
 
-    // 🔴 Logout (hapus token)
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        // Revoke all tokens of the authenticated user
+        $request->user()->tokens()->delete();
 
-        return response()->json([
-            'message' => 'Logout berhasil',
-        ]);
+        return response()->json(['message' => 'Logged out']);
+    }
+
+    public function me(Request $request)
+    {
+        return response()->json($request->user());
     }
 }
